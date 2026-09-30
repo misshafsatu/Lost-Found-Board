@@ -10,6 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: items
+    description: Lost and found item board operations
+  - name: Storage
+    description: Object storage upload and serving endpoints.
 paths:
   /healthz:
     get:
@@ -24,6 +28,119 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /items:
+    get:
+      tags: [items]
+      operationId: listItems
+      summary: List recently posted items
+      description: Returns recent lost and found items, optionally filtered by item name or location.
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search term matched against item name and description.
+        - name: location
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Location filter matched against the posted location.
+      responses:
+        "200":
+          description: Recently posted items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Item"
+    post:
+      tags: [items]
+      operationId: createItem
+      summary: Post a lost or found item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItemInput"
+      responses:
+        "201":
+          description: Item posted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Item"
+        "400":
+          description: Invalid item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /storage/uploads/request-url:
+    post:
+      tags: [Storage]
+      operationId: requestUploadUrl
+      summary: Request a presigned URL for file upload
+      description: Returns a presigned URL for a direct image upload.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadUrlRequest"
+      responses:
+        "200":
+          description: Presigned upload URL generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrlResponse"
+        "400":
+          description: Invalid upload metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          description: Failed to generate upload URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /storage/objects/{objectPath}:
+    get:
+      tags: [Storage]
+      operationId: getStorageObject
+      summary: Serve an uploaded object
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Object content
+          content:
+            "*/*":
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Object not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +150,98 @@ components:
           type: string
       required:
         - status
+    Item:
+      type: object
+      required:
+        - id
+        - type
+        - itemName
+        - description
+        - location
+        - itemDate
+        - contactInformation
+        - photoPath
+        - postedAt
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [lost, found]
+        itemName:
+          type: string
+        description:
+          type: string
+        location:
+          type: string
+        itemDate:
+          type: string
+          format: date
+        contactInformation:
+          type: string
+        photoPath:
+          type: [string, "null"]
+        postedAt:
+          type: string
+          format: date-time
+    ItemInput:
+      type: object
+      required:
+        - type
+        - itemName
+        - description
+        - location
+        - itemDate
+        - contactInformation
+      properties:
+        type:
+          type: string
+          enum: [lost, found]
+        itemName:
+          type: string
+          minLength: 1
+        description:
+          type: string
+          minLength: 1
+        location:
+          type: string
+          minLength: 1
+        itemDate:
+          type: string
+          format: date
+        contactInformation:
+          type: string
+          minLength: 1
+        photoPath:
+          type: [string, "null"]
+    UploadUrlRequest:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        size:
+          type: integer
+          minimum: 1
+        contentType:
+          type: string
+          minLength: 1
+    UploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL:
+          type: string
+          format: uri
+        objectPath:
+          type: string
+        metadata:
+          $ref: "#/components/schemas/UploadUrlRequest"
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
 

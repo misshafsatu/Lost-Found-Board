@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Lost & Found Board"
+description = "A community board for posting lost and found items with photos, contact information, locations, dates, and fast search by item name or location."
+version = "1.0.0"
+id = "artifacts/lost-found-board"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18576
+
+[services.development]
+run = "pnpm --filter @workspace/lost-found-board run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/lost-found-board", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/lost-found-board/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18576"
+BASE_PATH = "/"
